@@ -1,0 +1,946 @@
+<!-- by Comedor de Curioso -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whisker Feed</title>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Karla:wght@400;500;600&family=Space+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#211b36;
+    --ink-soft:#6a6289;
+    --cream:#f2effa;
+    --paper-raised:#faf8ff;
+    --violet:#6d4fc9;
+    --violet-deep:#4f37a6;
+    --blue:#4c6ef5;
+    --teal:#3a3470;
+    --line:#ddd5f2;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Karla', sans-serif;
+    background-image: radial-gradient(circle at 1px 1px, rgba(33,27,54,0.06) 1px, transparent 0);
+    background-size: 20px 20px;
+    min-height:100vh;
+  }
+
+  .display{ font-family:'Bricolage Grotesque', sans-serif; }
+  .mono{ font-family:'Space Mono', monospace; letter-spacing:0.02em; }
+
+  .topbar{
+    background:var(--ink);
+    color:var(--cream);
+    padding:14px 0;
+    border-bottom:3px solid var(--violet);
+    position:sticky; top:0; z-index:10;
+  }
+  .topbar .brand{ font-family:'Bricolage Grotesque', sans-serif; font-weight:700; font-size:1.35rem; }
+  .topbar .brand span{ color:var(--violet); }
+
+  .feed-wrap{
+    max-width:600px;
+    margin:0 auto;
+    padding-bottom:60px;
+  }
+
+  /* ---------- Composer ---------- */
+  .composer{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    padding:18px 20px;
+    display:flex;
+    gap:14px;
+  }
+  .composer .compose-body{ flex:1 1 auto; }
+  .composer textarea{
+    width:100%;
+    border:none;
+    background:transparent;
+    font-family:'Karla', sans-serif;
+    font-size:1.05rem;
+    resize:none;
+    min-height:44px;
+  }
+  .composer textarea:focus{ outline:none; }
+  .compose-footer{
+    display:flex; justify-content:flex-end; align-items:center; gap:10px;
+    border-top:1px solid var(--line);
+    margin-top:10px; padding-top:10px;
+  }
+  .btn-post{
+    background:var(--violet);
+    color:#fff;
+    border:none;
+    font-family:'Space Mono', monospace;
+    font-size:0.8rem;
+    padding:8px 18px;
+    border-radius:999px;
+  }
+  .btn-post:hover{ background:var(--violet-deep); }
+
+  /* ---------- Cat avatar (reused, flat-feed sizing) ---------- */
+  .catavatar{
+    flex:0 0 auto;
+    width:46px; height:46px;
+    position:relative;
+    transition: transform 0.35s cubic-bezier(.2,.8,.2,1);
+  }
+  .catavatar .face{
+    position:absolute; left:3px; top:7px;
+    width:39px; height:35px;
+    border-radius:45% 45% 50% 50%;
+    background:var(--label-color, var(--violet));
+  }
+  .catavatar .ear{
+    position:absolute; top:0;
+    width:0; height:0;
+    border-left:8px solid transparent;
+    border-right:8px solid transparent;
+    border-bottom:14px solid var(--label-color, var(--violet));
+  }
+  .catavatar .ear.left{ left:5px; transform:rotate(-12deg); }
+  .catavatar .ear.right{ right:5px; transform:rotate(12deg); }
+  .catavatar .ear-inner{
+    position:absolute; top:4px;
+    width:0; height:0;
+    border-left:3.5px solid transparent;
+    border-right:3.5px solid transparent;
+    border-bottom:7px solid var(--cream);
+  }
+  .catavatar .ear-inner.left{ left:8px; transform:rotate(-12deg); }
+  .catavatar .ear-inner.right{ right:8px; transform:rotate(12deg); }
+  .post:hover .catavatar{ transform: rotate(-6deg); }
+
+  /* ---------- Flat post (no nesting, no threads) ---------- */
+  .post{
+    display:flex;
+    gap:14px;
+    padding:16px 20px;
+    border-bottom:1px solid var(--line);
+    background:var(--paper-raised);
+  }
+  .post-body{ flex:1 1 auto; min-width:0; }
+  .post-head{ display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
+  .post-author{ font-weight:700; color:var(--ink); }
+  .post-handle{ color:var(--ink-soft); font-size:0.92rem; }
+  .post-time{ font-family:'Space Mono', monospace; font-size:0.78rem; color:var(--ink-soft); }
+  .dot-sep::before{ content:"·"; color:var(--ink-soft); margin:0 2px; }
+  .post-text{ margin-top:4px; font-size:0.98rem; line-height:1.55; color:#2a2440; }
+
+  /* ---------- Action row (Twitter-style icons, flat, no replies-to-replies) ---------- */
+  .actions{
+    margin-top:12px;
+    display:flex;
+    justify-content:space-between;
+    max-width:340px;
+    color:var(--ink-soft);
+  }
+  .action-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:none; border:none;
+    font-family:'Space Mono', monospace;
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    cursor:pointer;
+    padding:4px 6px;
+    border-radius:999px;
+    transition: color 0.15s ease;
+  }
+  .action-btn svg{ width:17px; height:17px; }
+  .action-btn:hover{ color:var(--violet-deep); }
+  .action-btn.boost:hover{ color:var(--blue); }
+  .action-btn.like.active{ color:var(--violet-deep); }
+  .action-btn.like.active svg path{ fill:var(--violet-deep); }
+  .action-btn:focus-visible{ outline:2px solid var(--violet-deep); outline-offset:2px; }
+
+  footer{
+    color:var(--ink-soft);
+    font-family:'Space Mono', monospace;
+    font-size:0.76rem;
+    text-align:center;
+    padding:30px 0;
+  }
+
+  @media (prefers-reduced-motion: reduce){ .catavatar{ transition:none; } }
+  @media (max-width: 576px){
+    .post{ padding:14px 14px; gap:10px; }
+    .catavatar{ width:38px; height:38px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div class="brand">Whisker <span>Feed</span></div>
+  </div>
+</div>
+
+<div class="feed-wrap">
+
+  <!-- Flat feed, no threads -->
+  
+
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">1</span>
+        <span class="post-time dot-sep">8/14/2026 20:14:17</span>
+      </div>
+      <div class="post-text">bb cream pa pa pa lipseutikel ma ma ma</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">2</span>
+        <span class="post-time dot-sep">8/14/2026 20:22:54</span>
+      </div>
+      <div class="post-text">Tinha uma moça de cabelo curto loira de oculos no stand de bcc, me apaixonei </div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">3</span>
+        <span class="post-time dot-sep">8/14/2026 20:28:46</span>
+      </div>
+      <div class="post-text">Gente, onde q eu vou pra conhecer unespianes? Eu sou até que bonitinha poxa 😔</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">4</span>
+        <span class="post-time dot-sep">8/14/2026 20:52:22</span>
+      </div>
+      <div class="post-text">omg spotted voltou ebaa</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">5</span>
+        <span class="post-time dot-sep">8/14/2026 21:58:48</span>
+      </div>
+      <div class="post-text">A unesp voltou, mas e o spoteed? Volta nunca??</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">6</span>
+        <span class="post-time dot-sep">8/15/2026 0:25:55</span>
+      </div>
+      <div class="post-text">não existe mais festa com open? 😢</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">7</span>
+        <span class="post-time dot-sep">8/15/2026 0:26:32</span>
+      </div>
+      <div class="post-text">só tem gente bonita em artes meu deus</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">8</span>
+        <span class="post-time dot-sep">8/15/2026 7:49:44</span>
+      </div>
+      <div class="post-text">Aiii, finalmente voltou?!?!?!
+Olha, tava orfã dessa página</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">9</span>
+        <span class="post-time dot-sep">8/15/2026 11:49:29</span>
+      </div>
+      <div class="post-text">Quem é a garota que estava com uma camisa vermelha da seleção da Sérvia no RU essa semana?</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">10</span>
+        <span class="post-time dot-sep">8/15/2026 12:54:33</span>
+      </div>
+      <div class="post-text">Volta spotted!!</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">11</span>
+        <span class="post-time dot-sep">8/15/2026 14:48:38</span>
+      </div>
+      <div class="post-text">Sempre vejo uma moça de fone no ru, ela usa óculos e tem uma tatuagem no pescoço escrito em japonês, queria saber quem é😭</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">12</span>
+        <span class="post-time dot-sep">8/15/2026 15:16:43</span>
+      </div>
+      <div class="post-text">ta na hora de mudar a descricao de "correio elegante o ano inteiro" pra "posto quando eu quiser"</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">13</span>
+        <span class="post-time dot-sep">8/15/2026 17:31:58</span>
+      </div>
+      <div class="post-text">Quem era aquela menina de cabelo cacheado longo com uma mecha roxa que estava no Uba quinta? Muito bonita</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">14</span>
+        <span class="post-time dot-sep">8/15/2026 22:39:07</span>
+      </div>
+      <div class="post-text">o que fazer quando está sexualmente confuso?</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">15</span>
+        <span class="post-time dot-sep">8/16/2026 2:05:39</span>
+      </div>
+      <div class="post-text">cade as mulheres que gostam de bater e mandar no parceiro romântico ein?</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">16</span>
+        <span class="post-time dot-sep">8/17/2026 2:53:51</span>
+      </div>
+      <div class="post-text">Terminei com o cara faz 2 anos e td role q eu to e infelizmente aquele ser está, ele fica me encarando q nem um psicopata eu hein caralho</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">17</span>
+        <span class="post-time dot-sep">8/17/2026 10:56:30</span>
+      </div>
+      <div class="post-text">por acaso algm sabe se tem grupo para dividir apto?</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">18</span>
+        <span class="post-time dot-sep">8/17/2026 10:57:13</span>
+      </div>
+      <div class="post-text">morar com gente bancada pelos pais e relaxada é foda </div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">19</span>
+        <span class="post-time dot-sep">8/17/2026 15:16:28</span>
+      </div>
+      <div class="post-text">Por favor, casal que fica se pegando no último banheiro dos banheiros femininos embaixo das 40s, dêem pelo menos um intervalo entre os dias. Não aguento mais ficar ouvindo sussurros e barulhos de saliva todo dia </div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">20</span>
+        <span class="post-time dot-sep">8/17/2026 18:00:32</span>
+      </div>
+      <div class="post-text">Seguinte, ou o RU DÁ UM FIM NESSA CATRACA ou FECHA ESSE QUIOSQUE. Eu chego, tento colocar meu acesso e os botões (que estão apagados para um caralho) não funciona. Forma-se uma fila impaciente atrás de mim (com razão) e eu sou forçada por mim mesma a ir pro fim da fila. É mole?
+Assinado: uma discente faminta de pedago</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">21</span>
+        <span class="post-time dot-sep">8/17/2026 20:55:46</span>
+      </div>
+      <div class="post-text">Tenho uma queda pelo melhor amigo do meu namorado.</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">22</span>
+        <span class="post-time dot-sep">8/18/2026 12:04:06</span>
+      </div>
+      <div class="post-text">Alguém sabe quem é a diva que estava indo pro restaurante universitário hoje (18/08) por volta das 11:20am? Ela tinha cabelo loiro curto (um pouco acima do ombro), uma blusa roxa e uma jaqueta (?) aberta por cima. Estava com dois rapazes, um com cabelo raspado, vindo no sentido daquele corredor que fica embaixo do departamento de psicologia e do departamento de física. 
+
+Te achei muito princesa, pfvr se identifique! </div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">23</span>
+        <span class="post-time dot-sep">8/18/2026 12:27:21</span>
+      </div>
+      <div class="post-text">Sou absurdamente gamado pela garota que fica na recepção LEPEC, da última vez que eu vi ela, ela tinha a franja descolorido, alguém sabe o @? 
+
+Se ela estiver lendo isso, saiba que você me fez entender porque tantos plebeus morreram tentando pedir a mão da realeza em casamento na idade média 🌹
+
+Deixa eu te levar pra tomar um café e ouvir minhas palhaçadas, sim? </div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">24</span>
+        <span class="post-time dot-sep">8/19/2026 16:46:16</span>
+      </div>
+      <div class="post-text">Deveriamos criar um grupo de futebol pra se organizar de ir jogar no DEF toda semana. Ir toda semana fazer uma pelada/rachão/bate bola/jogar um fut (ou sei lá como vcs chamam). Quem topa?</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">25</span>
+        <span class="post-time dot-sep">8/19/2026 20:23:34</span>
+      </div>
+      <div class="post-text">Procuro amizades que estejam dispostas a viver a vida universitária para irmos às festas da faculdade </div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">26</span>
+        <span class="post-time dot-sep">8/19/2026 20:49:00</span>
+      </div>
+      <div class="post-text">acho o twink do taubaté um gatinho! ele está solteiro?</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">27</span>
+        <span class="post-time dot-sep">8/19/2026 22:22:03</span>
+      </div>
+      <div class="post-text">e o kit de artes é pra sair esse ano ainda?</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">28</span>
+        <span class="post-time dot-sep">8/19/2026 22:38:20</span>
+      </div>
+      <div class="post-text">VAI SI FUDE quem foi q cagou nas calças e passou correndo no uba quarta feira 19/08 as 22:33? </div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">29</span>
+        <span class="post-time dot-sep">8/20/2026 6:08:46</span>
+      </div>
+      <div class="post-text">Israel gpt crie um spotted</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">30</span>
+        <span class="post-time dot-sep">8/21/2026 12:26:09</span>
+      </div>
+      <div class="post-text">síndrome de estrelismo essas festas open gelo e sucão cobrando metade de uma csk, coloquem a mão na consciência e valorizem o lazer universitário como era há um tempo</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">31</span>
+        <span class="post-time dot-sep">8/21/2026 17:18:21</span>
+      </div>
+      <div class="post-text">Quero saber quem era aquela lindez de cosplay de cabelo azul hoje na CLI, fiquei apaixonado</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">32</span>
+        <span class="post-time dot-sep">8/21/2026 22:49:37</span>
+      </div>
+      <div class="post-text">Moça de cabelo ruivo cacheado que estava no ru na sexta entre  18:30 e 19:00, te achei uma graça</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">33</span>
+        <span class="post-time dot-sep">8/21/2026 23:22:24</span>
+      </div>
+      <div class="post-text">Para comemorar a volta às aulas quero levar três leitadas no meu cuzinho guloso e homossexual, uma para cada mês de greve... De preferência de três machos diferentes</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">34</span>
+        <span class="post-time dot-sep">8/21/2026 23:31:34</span>
+      </div>
+      <div class="post-text">Gente em que era estamos, de quando são os posts, me comunico do dia 21 de agosto de 2026, às 23:31</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">35</span>
+        <span class="post-time dot-sep">8/21/2026 23:35:13</span>
+      </div>
+      <div class="post-text">@mariapaulavv estará presente no bosque quinta (27) às 18h. 😉❤️⭐️</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">36</span>
+        <span class="post-time dot-sep">8/21/2026 23:36:27</span>
+      </div>
+      <div class="post-text">moça de psicologia do cabelo preto de franja que teve aula nas 40s sexta feira te amo quem é vc</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">37</span>
+        <span class="post-time dot-sep">8/21/2026 23:39:59</span>
+      </div>
+      <div class="post-text">Mandar de novo pq resolveram trabalhar né, mas queria saber se tem grupos de dança na unesp, hiphop street e etc…sou bixete e to sentindo falta de dançar </div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">38</span>
+        <span class="post-time dot-sep">8/21/2026 23:40:18</span>
+      </div>
+      <div class="post-text">Oi galera, td bom? Entrei esse ano em psico e gostaria de saber se perto das 40s tem algum estacionamento com vigilância suficiente para carros importados ou teria algum estacionamento específico dentro do próprio campus no msm, fiquei meio perdido por conta da greve</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">39</span>
+        <span class="post-time dot-sep">8/21/2026 23:42:59</span>
+      </div>
+      <div class="post-text">União aroaces na unesp bauru AVANTE</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">40</span>
+        <span class="post-time dot-sep">8/22/2026 0:06:37</span>
+      </div>
+      <div class="post-text">O chá do gab**.** foi absurdo, espero que ele tenha gostado tanto quanto eu</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">41</span>
+        <span class="post-time dot-sep">8/22/2026 0:13:06</span>
+      </div>
+      <div class="post-text">pelo amor de Deus comprem cervejadaaaa de bio, quero descobrir esse ano pq falaram tão bem no ano passado mds eu imploro</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">42</span>
+        <span class="post-time dot-sep">8/22/2026 0:28:49</span>
+      </div>
+      <div class="post-text">queria agradecer a diva que me ajudou a levantar e carregar um rolo de papel enorme dps da minha queda mais feia e humilhante vista no câmpus de bauru. vc foi uma querida ❤️</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">43</span>
+        <span class="post-time dot-sep">8/22/2026 0:34:34</span>
+      </div>
+      <div class="post-text">Como que faz pra beijar a @luiza_ivy ?</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">44</span>
+        <span class="post-time dot-sep">8/22/2026 0:50:22</span>
+      </div>
+      <div class="post-text">FELIZ ANIVERSÁRIO @mabelgomesz</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">45</span>
+        <span class="post-time dot-sep">8/22/2026 0:53:47</span>
+      </div>
+      <div class="post-text">olá queria saber se o miúdo de jornal esta disponivel </div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">46</span>
+        <span class="post-time dot-sep">8/22/2026 1:36:25</span>
+      </div>
+      <div class="post-text">Moça de cabelo roxo da FAAC vamo joga aram desordem?</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">47</span>
+        <span class="post-time dot-sep">8/22/2026 2:00:00</span>
+      </div>
+      <div class="post-text">se eu t chamar pra beber gin fala pra mim oq acontece </div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">48</span>
+        <span class="post-time dot-sep">8/22/2026 10:20:42</span>
+      </div>
+      <div class="post-text">se o martini de arq soubesse o quanto eu acho ele gostoso ele me pegava por dó 😮‍💨</div>
+    </div>
+  </div>
+<div class="post">
+    <div class="catavatar" style="--label-color:#6d4fc9">
+      <div class="ear left"></div><div class="ear right"></div>
+      <div class="ear-inner left"></div><div class="ear-inner right"></div>
+      <div class="face"></div>
+    </div>
+    <div class="post-body">
+      <div class="post-head">
+        <span class="post-author">spotted</span>
+        <span class="number">49</span>
+        <span class="post-time dot-sep">8/22/2026 11:35:11</span>
+      </div>
+      <div class="post-text">yasmin lis que faz rp é a mulher mais bonita e estilosa q eu ja vi, sou obcecado mas tenho medo de tomar um fora, fico olhando de longe só </div>
+    </div>
+  </div>
+
+  <footer><a href="https://www.instagram.com/spottedunesp2/"> Spotted </a>/footer>
+
+</div>
+
+</body>
+</html>
